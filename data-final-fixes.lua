@@ -17,9 +17,9 @@ local known_lowest_fluids = {
 local known_downgrades = {}
 local known_downgrades_fluids = {}
 
-known_downgrades_fluids["light-oil"] = "crude-oil"
-known_downgrades_fluids["heavy-oil"] = "crude-oil"
-known_downgrades_fluids["petroleum-gas"] = "crude-oil"
+known_downgrades_fluids["light-oil"] = {{name = "crude-oil", amount = 10, type="fluid"}}
+known_downgrades_fluids["heavy-oil"] = {{name = "crude-oil", amount = 10, type="fluid"}}
+known_downgrades_fluids["petroleum-gas"] = {{name = "crude-oil", amount = 10, type="fluid"}}
 
 function should_remove_recipe(recipe)
   local items = find_result_items(recipe)
@@ -135,14 +135,6 @@ function get_ingredient_name(ingredient)
   return name
 end
 
-function update_ingredient_name(ingredient, new_name)
-  if ingredient.name then
-    ingredient.name = new_name
-  else
-    ingredient[1] = new_name
-  end
-end
-
 function get_ingredient_amount(ingredient)
   local amount = ingredient.amount
   if not amount then
@@ -152,47 +144,95 @@ function get_ingredient_amount(ingredient)
 end
 
 function update_ingredient_amount(ingredient, new_amount)
-  if ingredient.amount then
-    ingredient.amount = new_amount
+  local new_ingredient = table.deepcopy(ingredient)
+  if new_ingredient.amount then
+    new_ingredient.amount = new_amount
   else
-    ingredient[2] = new_amount
+    new_ingredient[2] = new_amount
   end
+  
+  return new_ingredient
 end
 
 function find_downgrade(ingredients)
+  local replacements = {}
+  local has_gaps = false
   for _, ingredient in pairs(ingredients) do
+    local done = false
     local name = get_ingredient_name(ingredient)
     for _, lowest in ipairs(known_lowest) do
       if name == lowest then
-        return lowest
+        table.insert(replacements, ingredient)
+        done = true
       end
     end
     
-    for known, downgrade in ipairs(known_downgrades) do
-      if name == known then
-        return downgrade
+    if not done then
+      for known, downgrades in ipairs(known_downgrades) do
+        if name == known then
+          done = true
+          for _, downgrade_ingredient in pairs(downgrades) do
+            table.insert(replacements, downgrade_ingredient)
+          end
+        end
       end
     end
+    
+    if not done then
+      if is_fluid_ingredient(ingredient) then
+        done = true
+      end
+    end
+    
+    if not done then
+      has_gaps = true
+    end
   end
-  return "unknown"
+  if has_gaps then
+    return "unknown"
+  else
+    return replacements
+  end
 end
 
-function find_fluid_downgrade(ingredients)
+function find_fluid_downgrade(ingredients)  
+  local replacements = {}
+  local has_gaps = false
   for _, ingredient in pairs(ingredients) do
+    local done = false
     local name = get_ingredient_name(ingredient)
     for _, lowest in ipairs(known_lowest_fluids) do
       if name == lowest then
-        return lowest
+        table.insert(replacements, ingredient)
+        done = true
       end
     end
     
-    for known, downgrade in ipairs(known_downgrades_fluids) do
-      if name == known then
-        return downgrade
+    if not done then
+      for known, downgrades in ipairs(known_downgrades_fluids) do
+        if name == known then
+          for _, downgrade_ingredient in pairs(downgrades) do
+            table.insert(replacements, downgrade_ingredient)
+          end
+        end
       end
     end
+    
+    if not done then
+      if not is_fluid_ingredient(ingredient) then
+        done = true
+      end
+    end
+    
+    if not done then
+      has_gaps = true
+    end
   end
-  return "unknown"
+  if has_gaps then
+    return "unknown"
+  else
+    return replacements
+  end
 end
 
 function do_downgrade_recipe(recipe)
@@ -212,52 +252,67 @@ function is_fluid_ingredient(ingredient)
 end
 
 function do_downgrade_ingredients(ingredients)
+  local new_ingredients = {}
   for key, ingredient in pairs(ingredients) do
     if is_fluid_ingredient(ingredient) then
-      apply_fluid_downgrade(ingredient)
+      local to_add = apply_fluid_downgrade(ingredient)
+      if to_add and to_add ~= "unknown" then
+        for _, item in pairs(to_add) do
+          table.insert(new_ingredients, item)
+        end
+      end
     else
-      apply_downgrade(ingredient)
+      local to_add = apply_downgrade(ingredient)
+      if to_add and to_add ~= "unknown" then
+        for _, item in pairs(to_add) do
+          table.insert(new_ingredients, item)
+        end
+      end
     end
   end
   
-  ingredients = merge_ingredients(ingredients)
+  ingredients = merge_ingredients(new_ingredients)
   
   return ingredients
 end
 
+-- takes an ingredient; return a table of ingredients to replace it with (might contain duplicates)
 function apply_downgrade(ingredient)
   local name = get_ingredient_name(ingredient)
-  local done = false
   for _, lowest in ipairs(known_lowest) do
     if name == lowest then
-      done = true
-      break
+      -- no replacement needed, but response still needs to be a table of ingredients
+      return {ingredient}
     end
   end
-  if not done then
-    for known, replacement in pairs(known_downgrades) do
-      if name == known then
-        done = true
-        update_ingredient_name(ingredient, replacement)
+  for known, replacement in pairs(known_downgrades) do
+    if name == known then
+      -- build a replacement
+      local new_ingredients = {}
+      local current_amount = get_ingredient_amount(ingredient)
+      for _, replacement_ingredient in pairs(replacement) do
+        local new_amount = get_ingredient_amount(replacement_ingredient)      
+        table.insert(new_ingredients, update_ingredient_amount(replacement_ingredient, current_amount * new_amount))
       end
+      return new_ingredients
     end
   end
 end
 
+-- takes an ingredient; return a table of ingredients to replace it with (might contain duplicates)
 function apply_fluid_downgrade(ingredient)
   local name = get_ingredient_name(ingredient)
   local done = false
   for _, lowest in ipairs(known_lowest_fluids) do
     if name == lowest then
-      done = true
-      break
+      -- no replacement needed, but response still needs to be a table of ingredients
+      return {ingredient}
     end
   end
   if not done then
     for known, replacement in pairs(known_downgrades_fluids) do
       if name == known then
-        done = true
-        update_ingredient_name(ingredient, replacement)
+        return replacement
       end
     end
   end
@@ -266,8 +321,6 @@ end
 -- merges ingredients without downgrading anything
 function merge_ingredients(ingredients)
    
---  log(stringify_table(ingredients))
-  
   local instances = {}
   local amounts = {}
   
@@ -286,58 +339,61 @@ function merge_ingredients(ingredients)
   
   local final_ingredients = {}
   for name, instance in pairs(instances) do
-    update_ingredient_amount(instance, amounts[name])
-    table.insert(final_ingredients, instance)
+    local new_instance = update_ingredient_amount(instance, amounts[name])
+    table.insert(final_ingredients, new_instance)
   end
-  
---log(stringify_table(final_ingredients))
   
   return final_ingredients
 end
 
 function stringify_table(t)
-  local out = ""
+  local out = "{\n"
   for key, value in pairs(t) do
+    -- handle key
     if type(key) == "table" then
-      out = out .. stringify_table(key)
+      out = out .. "key:" .. stringify_table(key)
     else
-      out = out .. key
+      out = out .. "key:" .. key
     end
-    out = out .. ": "
+    
+    out = out .. " -> \n"
+    
+    -- handle value
     if type(value) == "table" then
-      out = out .. stringify_table(value)
+      out = out .. "value:" .. stringify_table(value)
     else
-      out = out .. value
+      out = out .. "value:" .. value
     end
     out = out .. "\n"
   end
-  return out
+  return out .. "}"
 end
 
--- strip out intermediate recipes
-for recipe_key, recipe in pairs(data.raw["recipe"]) do
-
-  if should_remove_recipe(recipe) then
-    local downgrade = find_downgraded_item(recipe)
-    if downgrade ~= "unknown" then
-      known_downgrades[recipe.name] = downgrade
+-- iterate the recipes, filling the known downgrades with whatever we can
+-- (repeated iteration is needed in case an intermediate is defined after an item that uses it)
+local handled = {}
+for i = 1, 20 do
+  for _, recipe in pairs(data.raw["recipe"]) do
+    if not handled[recipe] then
+      local downgrade = find_downgraded_item(recipe)
+      if downgrade ~= "unknown" then
+        log( "handled: " .. recipe.name )
+        known_downgrades[recipe.name] = downgrade
+        handled[recipe] = true
+      else
+        log( "could not (yet) handle: " .. recipe.name )
+      end
     end
+  end
+end
 
+-- strip out intermediate recipes, downgrade everything else
+for recipe_key, recipe in pairs(data.raw["recipe"]) do
+  if should_remove_recipe(recipe) then
     table.insert(purged_recipes, recipe_key)
     data.raw["recipe"][recipe_key] = nil
   else
     do_downgrade_recipe(recipe)
-  end
-end
-
--- make a few additional passes to find all downgraded resource costs for items
-for i = 1, 20 do
-  for _, recipe in pairs(data.raw["recipe"]) do
-      local downgrade = find_downgraded_item(recipe)
-      if downgrade ~= "unknown" then
-        known_downgrades[recipe.name] = downgrade
-      end
-      do_downgrade_recipe(recipe)
   end
 end
 
@@ -358,3 +414,5 @@ for _, tech in pairs(data.raw["technology"]) do
     end
   end
 end
+
+log (stringify_table(known_downgrades))
