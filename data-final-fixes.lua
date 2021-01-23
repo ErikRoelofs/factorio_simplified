@@ -143,6 +143,22 @@ function update_ingredient_name(ingredient, new_name)
   end
 end
 
+function get_ingredient_amount(ingredient)
+  local amount = ingredient.amount
+  if not amount then
+    amount = ingredient[2]
+  end
+  return amount
+end
+
+function update_ingredient_amount(ingredient, new_amount)
+  if ingredient.amount then
+    ingredient.amount = new_amount
+  else
+    ingredient[2] = new_amount
+  end
+end
+
 function find_downgrade(ingredients)
   for _, ingredient in pairs(ingredients) do
     local name = get_ingredient_name(ingredient)
@@ -203,18 +219,8 @@ function do_downgrade_ingredients(ingredients)
       apply_downgrade(ingredient)
     end
   end
-  local seen = {}
-  local len = #ingredients
-  for i = len, 1, -1 do
-    local ingredient = ingredients[i]
-    local name = get_ingredient_name(ingredient)
-    
-    if seen[name] then
-      table.remove(ingredients, i)
-    else
-      seen[name] = true
-    end
-  end
+  
+  ingredients = merge_ingredients(ingredients)
   
   return ingredients
 end
@@ -257,6 +263,37 @@ function apply_fluid_downgrade(ingredient)
   end
 end
 
+-- merges ingredients without downgrading anything
+function merge_ingredients(ingredients)
+   
+--  log(stringify_table(ingredients))
+  
+  local instances = {}
+  local amounts = {}
+  
+  -- sum totals per ingredient
+  for _, ingredient in pairs(ingredients) do
+    local name = get_ingredient_name(ingredient)
+    local amount = get_ingredient_amount(ingredient)
+    
+    if instances[name] then
+      amounts[name] = amounts[name] + amount
+    else
+      instances[name] = ingredient
+      amounts[name] = amount
+    end
+  end
+  
+  local final_ingredients = {}
+  for name, instance in pairs(instances) do
+    update_ingredient_amount(instance, amounts[name])
+    table.insert(final_ingredients, instance)
+  end
+  
+--log(stringify_table(final_ingredients))
+  
+  return final_ingredients
+end
 
 function stringify_table(t)
   local out = ""

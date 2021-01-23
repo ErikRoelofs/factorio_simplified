@@ -1,9 +1,9 @@
 {
-  "name": "fire-armor",
+  "name": "simplified",
   "version": "0.1.0",
-  "title": "Fire Armor",
-  "author": "You",
+  "title": "Factorio Simplified",
+  "author": "Erik Roelofs",
   "factorio_version": "1.0",
   "dependencies": ["base >= 1.0"],
-  "description": "This mod adds in fire armor that leaves behind damaging fire as you walk around."
+  "description": "Factorio, but a LOT easier. Because my kids want to play but it's too difficult."
 }
