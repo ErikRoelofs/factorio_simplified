@@ -1,2 +1,2 @@
-- Downgrade items into their component parts
-- Properly deal with recipes that have both fluid and solid ingredients
+- fix the rocket silo
+- fix ingredient amount costs for recipes that go to more than one 

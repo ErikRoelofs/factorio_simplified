@@ -1,2 +1,0 @@
-require("power")
-require("entity")

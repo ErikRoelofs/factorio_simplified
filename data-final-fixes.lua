@@ -1,3 +1,7 @@
+function debug_log(text)
+  --log(text)
+end
+
 -- remove productivity module restrictions, they'll crash the game
 for k, v in pairs(data.raw.module) do
   if v.name:find("productivity%-module") then
@@ -8,7 +12,7 @@ end
 
 local purged_recipes = {}
 local known_lowest = {
-  "iron-ore", "copper-ore", "coal", "wood", "stone", "iron-plate", "copper-plate", "stone-brick", "plastic-bar", "sulfur", "steel-plate"
+  "iron-ore", "copper-ore", "coal", "wood", "stone", "iron-plate", "copper-plate", "stone-brick", "plastic-bar", "sulfur", "steel-plate", "uranium-ore"
 }
 local known_lowest_fluids = {
   "crude-oil", "water", "steam"
@@ -17,18 +21,25 @@ local known_lowest_fluids = {
 local known_downgrades = {}
 local known_downgrades_fluids = {}
 
+-- some stuff that the script doesn't get well (at least for now)
 known_downgrades_fluids["light-oil"] = {{name = "crude-oil", amount = 10, type="fluid"}}
 known_downgrades_fluids["heavy-oil"] = {{name = "crude-oil", amount = 10, type="fluid"}}
 known_downgrades_fluids["petroleum-gas"] = {{name = "crude-oil", amount = 10, type="fluid"}}
 
-function should_remove_recipe(recipe)
-  local items = find_result_items(recipe)
-  local keep = false
-  for _, item in pairs(items) do
+known_downgrades["uranium-238"] = {{name = "uranium-ore", amount = 10}}
+known_downgrades["uranium-235"] = {{name = "uranium-ore", amount = 1000}}
+
+ function should_remove_recipe(recipe)
+   local items = find_result_items(recipe)
+   local keep = false
+   if #items == 0 then
+     debug_log("no result items for recipe: " .. recipe.name)
+    end
+   for _, item in pairs(items) do
     keep = keep or should_remove_item(item)
-  end
-  return keep
-end
+   end
+   return keep
+ end
 
 function find_result_items(recipe)
   if recipe.result then
@@ -41,7 +52,8 @@ function find_result_items(recipe)
   if recipe.results then
     local items = {}
     for _, result in pairs(recipe.results) do
-      local new_item = find_item(result)
+      local new_item = nil
+      new_item = find_item(result)      
       if new_item then
         table.insert(items, new_item)
       end
@@ -67,8 +79,23 @@ function find_result_items(recipe)
   end
 end
 
-function find_item(name)
+function find_item(name)  
+  if type(name) == "table" then
+    if name.name then
+      name = name.name
+    elseif name[1] then
+      name = name[1]
+    else
+      debug_log(stringify_table(name))
+    end
+  end
+  debug_log("trying to find: " .. name)
   for _, item in pairs(data.raw["item"]) do
+    if item.name == name then
+      return item
+    end
+  end
+  for _, item in pairs(data.raw["fluid"]) do
     if item.name == name then
       return item
     end
@@ -86,13 +113,43 @@ function should_force_keep(name)
 end
 
 function should_remove_item(item)  
-  if not item then return false end
-  if item.place_as_tile then return false end
-  if item.fuel_value then return false end
-  if item.wire_count then return false end
-  if item.place_result then return false end
-  if item.placed_as_equipment_result then return false end
-  if should_force_keep(item.name) then return false end  
+  if not item then
+    debug_log("no item.")
+    return false 
+  end
+  if item.type ~= "item" and item.type ~= "fluid" then 
+    debug_log("keeping " .. item.name .. " because of its type :" .. item.type)
+    return false 
+  end
+  if item.place_as_tile then 
+    debug_log("keeping " .. item.name .. " as it can be placed as a tile")
+    return false
+  end
+  if item.fuel_value then 
+    debug_log("keeping " .. item.name .. " as it has a fuel value")
+    return false 
+  end
+  if item.wire_count then 
+    debug_log("keeping " .. item.name .. " as it is a wire")
+    return false 
+  end
+  if item.place_result then 
+    debug_log("keeping " .. item.name .. " as it is a placeable entity")
+    return false 
+  end
+  if item.placed_as_equipment_result then 
+    debug_log("keeping " .. item.name .. " as it is equipment")
+    return false 
+  end
+  if should_force_keep(item.name) then 
+    debug_log("keeping " .. item.name .. " as it is being force-kept")
+    return false
+  end  
+  if item.subgroup == "fluid-recipes" then 
+    debug_log("discarding " .. item.name .. " as it is a fluid")
+    return true 
+  end
+  debug_log("discarding " .. item.name .. " because there are no rules left to check.")
   return true
 end
 
@@ -356,6 +413,9 @@ function ingredients_contain_fluid(ingredients)
 end
 
 function maybe_modify_category(recipe)
+  if recipe.category and recipe.category ~= "crafting" then
+    return
+  end
   if recipe.ingredients and ingredients_contain_fluid(recipe.ingredients) then
     recipe.category = "crafting-with-fluid"
   end
@@ -404,11 +464,8 @@ for i = 1, 20 do
     if not handled[recipe] then
       local downgrade = find_downgraded_item(recipe)
       if downgrade ~= "unknown" then
-        log( "handled: " .. recipe.name )
         known_downgrades[recipe.name] = downgrade
         handled[recipe] = true
-      else
-        log( "could not (yet) handle: " .. recipe.name )
       end
     end
   end
@@ -433,8 +490,10 @@ for _, tech in pairs(data.raw["technology"]) do
       if effect.type == "unlock-recipe" then
         for _, purged in ipairs(purged_recipes) do
           if effect.recipe == purged then
+            debug_log("purging technology: " .. effect.recipe .. " with key " .. i)
             -- get rid of it
-            table.remove(tech.effects, key)
+            table.remove(tech.effects, i)
+            debug_log(stringify_table(tech.effects))
           end
         end
       end
@@ -446,10 +505,14 @@ for _, recipe in pairs(data.raw["recipe"]) do
   if not recipe.category then
     maybe_modify_category(recipe)
   end
-  
-  
-  if recipe.name == "atomic-bomb" then
-    --log(stringify_table(recipe))
-    recipe.category = "chemistry"
+ 
+  -- fix the rocket parts?
+  if recipe.name == "rocket-part" then
+    table.remove(recipe.ingredients, 4)
+    table.remove(recipe.ingredients, 1)
   end
+end
+
+for _, purged in ipairs(purged_recipes) do
+  debug_log("purged recipe: " .. purged)
 end
