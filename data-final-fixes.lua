@@ -168,7 +168,7 @@ function find_downgrade(ingredients)
     end
     
     if not done then
-      for known, downgrades in ipairs(known_downgrades) do
+      for known, downgrades in pairs(known_downgrades) do
         if name == known then
           done = true
           for _, downgrade_ingredient in pairs(downgrades) do
@@ -201,7 +201,7 @@ function find_fluid_downgrade(ingredients)
   for _, ingredient in pairs(ingredients) do
     local done = false
     local name = get_ingredient_name(ingredient)
-    for _, lowest in ipairs(known_lowest_fluids) do
+    for _, lowest in pairs(known_lowest_fluids) do
       if name == lowest then
         table.insert(replacements, ingredient)
         done = true
@@ -209,7 +209,7 @@ function find_fluid_downgrade(ingredients)
     end
     
     if not done then
-      for known, downgrades in ipairs(known_downgrades_fluids) do
+      for known, downgrades in pairs(known_downgrades_fluids) do
         if name == known then
           for _, downgrade_ingredient in pairs(downgrades) do
             table.insert(replacements, downgrade_ingredient)
@@ -346,6 +346,27 @@ function merge_ingredients(ingredients)
   return final_ingredients
 end
 
+function ingredients_contain_fluid(ingredients)
+  for _, ingredient in pairs(ingredients) do
+    if is_fluid_ingredient(ingredient) then
+      return true
+    end
+  end
+  return false
+end
+
+function maybe_modify_category(recipe)
+  if recipe.ingredients and ingredients_contain_fluid(recipe.ingredients) then
+    recipe.category = "crafting-with-fluid"
+  end
+  if recipe.normal and ingredients_contain_fluid(recipe.normal.ingredients) then
+    recipe.category = "crafting-with-fluid"
+  end
+  if recipe.expensive and ingredients_contain_fluid(recipe.expensive.ingredients) then
+    recipe.category = "crafting-with-fluid"
+  end
+end
+
 function stringify_table(t)
   local out = "{\n"
   for key, value in pairs(t) do
@@ -361,6 +382,12 @@ function stringify_table(t)
     -- handle value
     if type(value) == "table" then
       out = out .. "value:" .. stringify_table(value)
+    elseif type(value) == "boolean" then
+      if value then
+        out = out .. "value: True" 
+      else
+        out = out .. "value: False" 
+      end
     else
       out = out .. "value:" .. value
     end
@@ -415,4 +442,14 @@ for _, tech in pairs(data.raw["technology"]) do
   end
 end
 
-log (stringify_table(known_downgrades))
+for _, recipe in pairs(data.raw["recipe"]) do
+  if not recipe.category then
+    maybe_modify_category(recipe)
+  end
+  
+  
+  if recipe.name == "atomic-bomb" then
+    --log(stringify_table(recipe))
+    recipe.category = "chemistry"
+  end
+end
