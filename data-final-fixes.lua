@@ -550,7 +550,7 @@ for _, recipe in pairs(data.raw["recipe"]) do
     maybe_modify_category(recipe)
   end
  
-  -- fix the rocket parts?
+  -- fix the rocket parts. I guess it either doesn't support fluid or more than 3 parts? Whatever, this works.
   if recipe.name == "rocket-part" then
     table.remove(recipe.ingredients, 4)
     table.remove(recipe.ingredients, 1)
