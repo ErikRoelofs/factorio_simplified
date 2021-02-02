@@ -34,3 +34,29 @@ util = {
   by_pixel = function() end,
 }
 sounds = {}
+
+local ensure = function(value, recipe, msg)
+  if not value then
+    print(msg)
+    print(stringify_table(recipe))
+  end
+end
+
+function validate(recipe, ingredients)
+  local recipe_ingredients = find_ingredients(recipe)
+  ensure (#recipe_ingredients == #ingredients, recipe, "Number of ingredients mismatch for " .. recipe.name .. " (" .. #ingredients .. " expected, " .. #recipe_ingredients .. " received.")
+  for _, expected in ipairs(ingredients) do
+    local found = false
+    local expected_name = get_ingredient_name(expected)    
+    local expected_amount = get_ingredient_amount(expected)
+    for _, real in ipairs(recipe_ingredients) do
+      local real_name = get_ingredient_name(real)
+      if real_name == expected_name then
+        real_amount = get_ingredient_amount(real)
+        ensure(expected_amount == real_amount, recipe, "Amount of ingredient mismatch for " .. recipe.name .. " on ingredient " .. expected_name .. "(was expecting " .. expected_amount .. ", found " .. real_amount .. ")")
+        found = true
+      end
+    end
+    ensure(found, recipe, "Type of ingredient mismatch for " .. recipe.name .. " on ingredient " .. expected_name)
+  end  
+end

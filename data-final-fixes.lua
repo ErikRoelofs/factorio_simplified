@@ -292,6 +292,18 @@ function find_fluid_downgrade(ingredients)
   end
 end
 
+function find_ingredients(recipe)
+  if recipe.ingredients then
+    return recipe.ingredients
+  end
+  if recipe.normal then
+    return recipe.normal.ingredients
+  end
+  if recipe.expensive then
+    return recipe.expensive.ingredients
+  end
+end
+
 function do_downgrade_recipe(recipe)
   if recipe.ingredients then
     recipe.ingredients = do_downgrade_ingredients(recipe.ingredients)
@@ -329,8 +341,18 @@ function do_downgrade_ingredients(ingredients)
   end
   
   ingredients = merge_ingredients(new_ingredients)
+  ingredients = ensure_whole_values(ingredients)
   
   return ingredients
+end
+
+function ensure_whole_values(ingredients)
+  
+  local new = {}
+  for _, ingredient in ipairs(ingredients) do
+    table.insert(new, update_ingredient_amount(ingredient, math.ceil(get_ingredient_amount(ingredient))))
+  end
+  return new
 end
 
 -- takes an ingredient; return a table of ingredients to replace it with (might contain duplicates)
@@ -461,6 +483,16 @@ function stringify_table(t, depth)
   return out .. fn(depth-2) .. "}"
 end
 
+function get_recipe_result_count(recipe)
+  if recipe.result_count then
+    return recipe.result_count
+  end
+  if recipe.normal and recipe.normal.result_count then
+    return recipe.normal.result_count
+  end
+  return 1
+end
+
 -- iterate the recipes, filling the known downgrades with whatever we can
 -- (repeated iteration is needed in case an intermediate is defined after an item that uses it)
 local handled = {}
@@ -469,6 +501,13 @@ for i = 1, 20 do
     if not handled[recipe] then
       local downgrade = find_downgraded_item(recipe)
       if downgrade ~= "unknown" then
+        if get_recipe_result_count(recipe) > 1 then
+          local amount = get_recipe_result_count(recipe)
+          for k, ingredient in ipairs(downgrade) do
+            downgrade[k] = update_ingredient_amount(ingredient, get_ingredient_amount(ingredient) / amount)
+          end
+        end
+        
         known_downgrades[recipe.name] = downgrade
         handled[recipe] = true
       end
