@@ -1,2 +1,10 @@
-- fix the rocket silo
 - fix ingredient amount costs for recipes that go to more than one 
+- add some settings:
+  - crop ingredient counts
+  - include some level of intermediates
+  - reduce speed of cost increase over levels
+  
+- mod compatibility:
+  - better handling of probabilistic recipes
+  - better handling of multi-output recipes
+  - some handling of multiple recipes producing the same item

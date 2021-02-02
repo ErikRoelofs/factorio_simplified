@@ -348,7 +348,7 @@ function apply_downgrade(ingredient)
       local new_ingredients = {}
       local current_amount = get_ingredient_amount(ingredient)
       for _, replacement_ingredient in pairs(replacement) do
-        local new_amount = get_ingredient_amount(replacement_ingredient)      
+        local new_amount = get_ingredient_amount(replacement_ingredient)
         table.insert(new_ingredients, update_ingredient_amount(replacement_ingredient, current_amount * new_amount))
       end
       return new_ingredients
@@ -412,6 +412,7 @@ function ingredients_contain_fluid(ingredients)
   return false
 end
 
+-- move everything that now uses fluids into the crafting-with-fluids category
 function maybe_modify_category(recipe)
   if recipe.category and recipe.category ~= "crafting" then
     return
@@ -427,33 +428,37 @@ function maybe_modify_category(recipe)
   end
 end
 
-function stringify_table(t)
+-- this is just a simple debug function
+function stringify_table(t, depth)
+  local fn = function(num) local out = "" local i = 0 while i < num do out = out .. " " i = i + 1 end return out end
+  depth = depth or 2
   local out = "{\n"
   for key, value in pairs(t) do
     -- handle key
+    out = out .. fn(depth)
     if type(key) == "table" then
-      out = out .. "key:" .. stringify_table(key)
+      out = out .. "" .. stringify_table(key, depth + 2)
     else
-      out = out .. "key:" .. key
+      out = out .. "" .. key
     end
     
-    out = out .. " -> \n"
+    out = out .. " -> "
     
     -- handle value
     if type(value) == "table" then
-      out = out .. "value:" .. stringify_table(value)
+      out = out .. "" .. stringify_table(value, depth + 2)
     elseif type(value) == "boolean" then
       if value then
-        out = out .. "value: True" 
+        out = out .. "True" 
       else
-        out = out .. "value: False" 
+        out = out .. "False" 
       end
     else
-      out = out .. "value:" .. value
+      out = out .. "" .. value
     end
     out = out .. "\n"
   end
-  return out .. "}"
+  return out .. fn(depth-2) .. "}"
 end
 
 -- iterate the recipes, filling the known downgrades with whatever we can
@@ -510,6 +515,15 @@ for _, recipe in pairs(data.raw["recipe"]) do
   if recipe.name == "rocket-part" then
     table.remove(recipe.ingredients, 4)
     table.remove(recipe.ingredients, 1)
+  end
+end
+
+-- fix resources that need fluids for mining (ie; uranium ore)
+for _, resource in pairs(data.raw["resource"]) do
+  if resource.minable then
+    if resource.minable.required_fluid then
+      resource.minable.required_fluid = 'crude-oil'
+    end
   end
 end
 
