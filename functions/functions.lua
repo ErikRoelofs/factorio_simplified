@@ -1,11 +1,30 @@
-function should_remove_recipe(recipe)
+function get_max_tier()
+  local value = settings.startup["simplified-max-intermediate-tier"].value
+  if value == "tier 1" then
+    return 1
+  elseif value == "tier 2" then
+    return 2
+  elseif value == "tier 3" then
+    return 3
+  elseif value == "tier 4" then
+    return 4
+  elseif value == "tier 5" then
+    return 5
+  elseif value == "tier 6" then
+    return 6
+  elseif value == "tier 7" then
+    return 7
+  end
+end
+
+function should_remove_recipe(recipe, max_item_tier)
    local items = find_result_items(recipe)
    local keep = false
    if #items == 0 then
      debug_log("no result items for recipe: " .. recipe.name)
     end
    for _, item in pairs(items) do
-    keep = keep or should_remove_item(item)
+    keep = keep or should_remove_item(item, max_item_tier)
    end
    return keep  
 end
@@ -68,7 +87,7 @@ function find_item(name, item_type)
   end
   
   -- search all known locations of items
-  local search_tables = {"item", "fluid", "armor", "gun", "item-with-entity-data", "ammo", "capsule", "item-with-inventory", "tool", "item-with-label", "mining-tool", "upgrade-item", "repair-tool", "module", "spidertron-remote"}
+  local search_tables = {"item", "fluid", "armor", "gun", "item-with-entity-data", "ammo", "capsule", "item-with-inventory", "tool", "item-with-label", "mining-tool", "upgrade-item", "repair-tool", "module", "spidertron-remote", "rail-planner"}
   for _, subtable in ipairs(search_tables) do
     for _, item in pairs(data.raw[subtable]) do
       if item.name == name then
@@ -78,14 +97,18 @@ function find_item(name, item_type)
   end
 end
 
-function should_force_keep(name)
-  for _, keep in ipairs(known_lowest) do
-    if name == keep then
+function should_force_keep(name, max_item_tier)
+  if not max_item_tier then  
+    error("no max tier given")
+  end
+  if intermediate_tier[name] <= max_item_tier then
+    return true
+  end
+  for _, exception in ipairs(force_keeps) do
+    if name == exception then
       return true
     end
   end
-  if name == "rocket-part" then return true end
-  if name == "satellite" then return true end
   return false
 end
 
@@ -117,8 +140,8 @@ function is_intermediate(item)
   return true
 end
 
-function should_remove_item(item)  
-  return is_intermediate(item) and not should_force_keep(item.name)
+function should_remove_item(item, max_item_tier)  
+  return is_intermediate(item) and not should_force_keep(item.name, max_item_tier)
 end
 
 function get_ingredient_name(ingredient)
@@ -274,19 +297,57 @@ function get_recipe_result_num_items(recipe)
   return 1
 end
 
-
-function determine_tier(ingredients, result_item)
+-- an item's full tier is equal to the highest tier of its ingredient items + 1
+function determine_full_tier(item_name, known_item_tiers, depth)
+  depth = depth or 0
+  if depth > 15 then
+    debug_log('digging deep for ' .. item_name)
+  end
+  if depth > 30 then
+    debug_log('force quitting on ' .. item_name)
+    return 0
+  end
+  -- cache
+  if known_item_tiers[item_name] then return known_item_tiers[item_name] end
+  
+  local recipe = find_recipe_for(item_name)  
+  if not recipe then
+    known_item_tiers[item_name] = 0
+    return 0
+  end
+  local ingredients = find_ingredients(recipe)
+  
   local max_tier = 0
-  for _, ingredient in pairs(ingredients) do
-    local name = get_ingredient_name(ingredient)
-    local tier = ingredient_tier[name]
-    if tier == nil then return nil end
-    max_tier = math.max(tier, max_tier)
+  for _, i in ipairs(ingredients) do
+    max_tier = math.max(max_tier, determine_full_tier(get_ingredient_name(i), known_item_tiers, depth+1))
   end
-  if is_intermediate(result_item) then
+  known_item_tiers[item_name] = max_tier + 1
+  return max_tier + 1
+end
+
+-- an item's full tier is equal to the highest tier of its intermediates, + 1 if it itself an intermediate
+function determine_intermediate_tier(item_name, known_item_tiers)
+  -- cache
+  if known_item_tiers[item_name] then return known_item_tiers[item_name] end
+  
+  local recipe = find_recipe_for(item_name)  
+  if not recipe then
+    known_item_tiers[item_name] = 0
+    return 0
+  end
+  local ingredients = find_ingredients(recipe)
+  
+  local max_tier = 0
+  for _, i in ipairs(ingredients) do
+    max_tier = math.max(max_tier, determine_intermediate_tier(get_ingredient_name(i), known_item_tiers))
+  end
+  if is_intermediate(find_item(item_name)) then
+    known_item_tiers[item_name] = max_tier + 1
     return max_tier + 1
+  else
+    known_item_tiers[item_name] = max_tier
+    return max_tier
   end
-  return max_tier
 end
 
 function multiply_ingredient_cost(ingredients, multiplier)
@@ -320,7 +381,22 @@ function crop_ingredients(ingredients)
     end
   end
   
+  -- also crop to restrict item count to the allowed maximums
+  for k, i in ipairs(ingredients) do
+    if get_ingredient_amount(i) > 65000 then
+      ingredients[k] = update_ingredient_amount(i, 65000)
+    end
+  end
+    
   return ingredients
+end
+
+function new_ingredient(name, amount)
+  if name == 'crude-oil' then
+    return {name = name, amount = amount, type = "fluid"}
+  else
+    return {name, amount}
+  end
 end
 
 -- new stuff
@@ -328,12 +404,24 @@ end
 function determine_new_recipe_cost(recipe, other_known_item_costs, max_tier, max_num_ingredients)
   local results = find_result_items(recipe)
   local total_cost = {}
+  debug_log("handling: " .. recipe.name )
   
   for _, result in ipairs(results) do
     
-    local result_item = result.name
-    local ingredients = find_ingredients(recipe)
-    local new_ingredients = determine_new_item_costs(result_item, other_known_item_costs)
+    local result_item = result.name    
+    local new_ingredients = determine_new_item_costs(result_item, other_known_item_costs, max_tier)
+    -- there are no new ingredients because this part of the recipe should not be changed.
+    if not new_ingredients then
+      -- just use the raw ingredients, but adapted for the result amounts
+      local count = get_recipe_result_count(recipe, result_item)
+      local num_items = get_recipe_result_num_items(recipe)
+    
+      new_ingredients = find_ingredients(recipe)
+      new_ingredients = multiply_ingredient_cost(new_ingredients, (1 / count) / num_items)
+      
+      debug_log("multiplier: " .. ((1 / count) / num_items))
+      
+    end
     debug_log("new ingredients for " .. result_item .. ": " .. stringify_table(new_ingredients))
     
     -- multiply for the current count
@@ -356,14 +444,13 @@ function determine_new_recipe_cost(recipe, other_known_item_costs, max_tier, max
   return total_cost
 end
 
-function determine_new_item_costs(item_name, other_known_item_costs)
+function determine_new_item_costs(item_name, other_known_item_costs, max_tier)
   -- cache
   if other_known_item_costs[item_name] then return other_known_item_costs[item_name] end
   
-  local max_tier = 0
-  if item_is_intermediate[item_name] and ingredient_tier[item_name] <= max_tier then
+  if item_is_intermediate[item_name] and intermediate_tier[item_name] <= max_tier then
     -- this need not be downgraded
-    return {{item_name, 1}}
+    return nil
   end  
   
   debug_log("determining item costs for: " .. item_name)
@@ -371,13 +458,8 @@ function determine_new_item_costs(item_name, other_known_item_costs)
   -- find the recipe(s) that make this
   local recipe = find_recipe_for(item_name)
   if not recipe then
-    -- there is no recipe; this must be mined directly
-    -- this is directly manipulating the script's storage tables.
-    table.insert(known_lowest, item_name)
-    ingredient_tier[item_name] = 0
-    item_is_intermediate[item_name] = is_intermediate(item)
     -- this item costs 1 of itself, cache it
-    other_known_item_costs[item_name] = {{item_name, 1}}
+    other_known_item_costs[item_name] = {new_ingredient(item_name, 1)}
     return other_known_item_costs[item_name]
   end
   
@@ -388,13 +470,14 @@ function determine_new_item_costs(item_name, other_known_item_costs)
     local ingredient_name = get_ingredient_name(ingredient)
     local ingredient_amount = get_ingredient_amount(ingredient)
     
-    if item_is_intermediate[ingredient_name] and ingredient_tier[ingredient_name] <= max_tier then
+    if item_is_intermediate[ingredient_name] and intermediate_tier[ingredient_name] <= max_tier then
+      print("keeping something :o" .. ingredient_name)
       -- keep this ingredient
       table.insert(new_ingredients, ingredient)
     else
       -- downgrade this ingredient
       debug_log("downgrading: " .. ingredient_name .. " (amount: " .. ingredient_amount .. ")")
-      local costs = determine_new_item_costs(ingredient_name, other_known_item_costs)
+      local costs = determine_new_item_costs(ingredient_name, other_known_item_costs, max_tier)
       -- multiply by the number needed
       local multiplied_costs = multiply_ingredient_cost(costs, ingredient_amount)
       for _, c in ipairs(multiplied_costs) do
@@ -419,10 +502,14 @@ end
 function find_recipe_for(item_name)
   -- @todo: there could be more than 1, we'd need to pick the "best" one
   for _, recipe in pairs(data.raw.recipe) do
-    local results = find_result_items(recipe)
-    for _, result_item in ipairs(results) do
-      if result_item.name == item_name then
-        return recipe
+    if recipe.name:find('-barrel') ~= nil and recipe.name:find('empty-barrel') == nil then
+      -- skip this one
+    else
+      local results = find_result_items(recipe)
+      for _, result_item in ipairs(results) do
+        if result_item.name == item_name then
+          return recipe
+        end
       end
     end
   end

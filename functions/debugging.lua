@@ -1,5 +1,5 @@
 function debug_log(text)
-  --log(text)
+  log(text)
   --print(text)
 end
 

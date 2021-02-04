@@ -1,20 +1,11 @@
-Approach:
-- determine the cost in only intermediates for each item
-- recursively go down the items
-
-- automatically determine item tiers
-  - intermediate tier = tier of highest ingredient + 1 (after downgrading non-intermediates)
-  - this will always build from the ground up; so if the max-tier is reached, everything can be downgraded)
-
 - add some settings:
   - crop ingredient counts
     - crop out the lowest values?
-  - include some level of intermediates
   - reduce speed of cost increase over levels
+  - reduce speed of tech cost increase
+  
+  - remove some pointless barrel fill/flush recipes
+  - better handle chemical/refinery recipes that use multiple fluids
   
 - mod compatibility:
-  - better handling of probabilistic recipes
-  - better handling of multi-output recipes
   - some handling of multiple recipes producing the same item
-
-- support auto-finding directly mineable resources
