@@ -3,7 +3,7 @@ function log(msg)
 end
 
 settings = {startup = {}}
-settings.startup["simplified-max-intermediate-tier"] = { value = "tier 5" }
+settings.startup["simplified-max-intermediate-tier"] = { value = "tier-5" }
 
 require "test_data/setup"
 require "test_data/recipes"

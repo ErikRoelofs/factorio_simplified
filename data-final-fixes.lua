@@ -52,7 +52,7 @@ debug_log("determining intermediate tier for each item")
 -- determine intermediate item tier for each item
 intermediate_tier = {}
 
-for _, exception in ipairs(tier_overrides) do
+for _, exception in ipairs(tier_overrides) do  
   intermediate_tier[exception[1]] = exception[2]
 end
 
@@ -63,7 +63,9 @@ for _, recipe in pairs(data.raw["recipe"]) do
 end
 
 for name, tier in pairs(intermediate_tier) do
-  print ( name .. " -> " .. tier )
+  if item_is_intermediate[name] then
+    print ( name .. " -> " .. tier )
+  end
 end
 
 debug_log("determining new costs for each recipe")
