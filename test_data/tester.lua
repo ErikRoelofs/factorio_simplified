@@ -7,11 +7,11 @@ require "test_data/resources"
 
 require "data-final-fixes"
 
-local expectations = {
-  inserter = {{ "iron-plate", 4 }, { "copper-plate", 1 }},  
-}
-expectations["assembling-machine-1"] = {{ "iron-plate", 22 }, { "copper-plate", 2 }}
-expectations["refined-concrete"] = {{"steel-plate", 1}, { "stone-brick", 10 }, { "iron-ore", 2 }, {"water", 100}, {"iron-plate", 4}}
+-- validate some ingredients
+local expectations = {}
+expectations["inserter"] = {{ "iron-plate", 4 }, { "copper-plate", 2 }}
+expectations["assembling-machine-1"] = {{ "iron-plate", 22 }, { "copper-plate", 5 }}
+expectations["refined-concrete"] = {{ "stone-brick", 10 }, { "iron-ore", 2 }, {"water", 300}, {"iron-plate", 9}}
 
 for name, ingredients in pairs(expectations) do
   local found = false
