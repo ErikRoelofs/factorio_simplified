@@ -1,5 +1,6 @@
 require "functions/debugging"
 require "functions/functions"
+require "functions/settings"
 
 force_keeps = {}
 function force_keep(name)
@@ -43,13 +44,12 @@ debug_log("determining full tier for each item")
 item_tier = {}
 
 for _, recipe in pairs(data.raw["recipe"]) do
-  for _, item in pairs(find_result_items(recipe)) do
+  for _, item in pairs(find_result_items(recipe)) do    
     item_tier[item.name] = determine_full_tier(item.name, item_tier)
   end
 end
 
 debug_log("determining intermediate tier for each item")
--- determine intermediate item tier for each item
 intermediate_tier = {}
 
 for _, exception in ipairs(tier_overrides) do  
@@ -58,13 +58,7 @@ end
 
 for _, recipe in pairs(data.raw["recipe"]) do
   for _, item in pairs(find_result_items(recipe)) do
-    item_tier[item.name] = determine_intermediate_tier(item.name, intermediate_tier)
-  end
-end
-
-for name, tier in pairs(intermediate_tier) do
-  if item_is_intermediate[name] then
-    print ( name .. " -> " .. tier )
+    intermediate_tier[item.name] = determine_intermediate_tier(item.name, intermediate_tier)
   end
 end
 
@@ -72,11 +66,8 @@ debug_log("determining new costs for each recipe")
 local known_item_costs = {}
 local new_recipe_costs = {}
 for _, recipe in pairs(data.raw.recipe) do
-  --if recipe.name == "refined-concrete" then
-    debug_log("handling: " .. recipe.name)    
-    local new_costs = determine_new_recipe_cost(recipe, known_item_costs, max_item_tier, 1)
-    new_recipe_costs[recipe] = new_costs
-  --end
+  local new_costs = determine_new_recipe_cost(recipe, known_item_costs, max_item_tier, 1, get_tier_based_cost_reduction())
+  new_recipe_costs[recipe] = new_costs
 end
 
 debug_log("updating the costs for each recipe")

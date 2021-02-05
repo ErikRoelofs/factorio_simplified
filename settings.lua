@@ -1,3 +1,5 @@
+require "functions/settings"
+
 data:extend({
     {
         type = "string-setting",

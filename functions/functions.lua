@@ -1,39 +1,3 @@
-function get_max_tier()
-  local value = settings.startup["simplified-max-intermediate-tier"].value
-  if value == "tier-0" then
-    return 0
-  elseif value == "tier-1" then
-    return 1
-  elseif value == "tier-2" then
-    return 2
-  elseif value == "tier-3" then
-    return 3
-  elseif value == "tier-4" then
-    return 4
-  elseif value == "tier-5" then
-    return 5
-  elseif value == "tier-6" then
-    return 6
-  elseif value == "tier-7" then
-    return 7
-  elseif value == "tier-8" then
-    return 8
-  elseif value == "tier-9" then
-    return 9
-  elseif value == "tier-10" then
-    return 10
-  elseif value == "tier-11" then
-    return 11
-  elseif value == "tier-12" then
-    return 12
-  elseif value == "tier-13" then
-    return 13
-  elseif value == "tier-14" then
-    return 14
-  end
-  return 1
-end
-
 function should_remove_recipe(recipe, max_item_tier)
    local items = find_result_items(recipe)
    local keep = false
@@ -317,10 +281,10 @@ end
 -- an item's full tier is equal to the highest tier of its ingredient items + 1
 function determine_full_tier(item_name, known_item_tiers, depth)
   depth = depth or 0
-  if depth > 15 then
+  if depth == 15 then
     debug_log('digging deep for ' .. item_name)
   end
-  if depth > 30 then
+  if depth >= 30 then
     debug_log('force quitting on ' .. item_name)
     return 0
   end
@@ -418,10 +382,9 @@ end
 
 -- new stuff
 
-function determine_new_recipe_cost(recipe, other_known_item_costs, max_tier, max_num_ingredients)
+function determine_new_recipe_cost(recipe, other_known_item_costs, max_tier, crop_strategy, tier_based_cost_reduction)
   local results = find_result_items(recipe)
   local total_cost = {}
-  debug_log("handling: " .. recipe.name )
   
   for _, result in ipairs(results) do
     
@@ -435,16 +398,18 @@ function determine_new_recipe_cost(recipe, other_known_item_costs, max_tier, max
     
       new_ingredients = find_ingredients(recipe)
       new_ingredients = multiply_ingredient_cost(new_ingredients, (1 / count) / num_items)
-      
-      debug_log("multiplier: " .. ((1 / count) / num_items))
-      
     end
-    debug_log("new ingredients for " .. result_item .. ": " .. stringify_table(new_ingredients))
     
     -- multiply for the current count
     local count = get_recipe_result_count(recipe, result_item)
     local ingredients = multiply_ingredient_cost(new_ingredients, count)
     
+    -- apply tier based reduction to each result item    
+    local reduction_tier = math.max((item_tier[result_item] - 2), 0)
+    if reduction_tier > 0 then
+      ingredients = multiply_ingredient_cost(ingredients, tier_based_cost_reduction ^ reduction_tier)
+    end
+
     for _, i in ipairs(ingredients) do
       table.insert(total_cost, i)
     end
@@ -453,10 +418,9 @@ function determine_new_recipe_cost(recipe, other_known_item_costs, max_tier, max
   -- merge
   total_cost = merge_ingredients(total_cost)
   total_cost = ensure_whole_values(total_cost)
-  
+    
   -- crop it
-  total_cost = crop_ingredients(total_cost)
-  
+  total_cost = crop_ingredients(total_cost, crop_strategy)
   
   return total_cost
 end
@@ -470,7 +434,6 @@ function determine_new_item_costs(item_name, other_known_item_costs, max_tier)
     return nil
   end  
   
-  debug_log("determining item costs for: " .. item_name)
   assert(item_name, "No item name given.")
   -- find the recipe(s) that make this
   local recipe = find_recipe_for(item_name)
@@ -488,12 +451,10 @@ function determine_new_item_costs(item_name, other_known_item_costs, max_tier)
     local ingredient_amount = get_ingredient_amount(ingredient)
     
     if item_is_intermediate[ingredient_name] and intermediate_tier[ingredient_name] <= max_tier then
-      print("keeping something :o" .. ingredient_name)
       -- keep this ingredient
       table.insert(new_ingredients, ingredient)
     else
       -- downgrade this ingredient
-      debug_log("downgrading: " .. ingredient_name .. " (amount: " .. ingredient_amount .. ")")
       local costs = determine_new_item_costs(ingredient_name, other_known_item_costs, max_tier)
       -- multiply by the number needed
       local multiplied_costs = multiply_ingredient_cost(costs, ingredient_amount)
@@ -509,7 +470,6 @@ function determine_new_item_costs(item_name, other_known_item_costs, max_tier)
   local num_items = get_recipe_result_num_items(recipe)
   
   reduced = multiply_ingredient_cost(new_ingredients, (1 / count) / num_items)
-  debug_log("item costs for a single " .. item_name .. " are: " .. stringify_table(reduced))
   
   -- cache it
   other_known_item_costs[item_name] = reduced

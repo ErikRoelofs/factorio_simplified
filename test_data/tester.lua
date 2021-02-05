@@ -1,9 +1,10 @@
 function log(msg)
-  print(msg)
+  --print(msg)
 end
 
 settings = {startup = {}}
-settings.startup["simplified-max-intermediate-tier"] = { value = "tier-5" }
+settings.startup["simplified-max-intermediate-tier"] = { value = "tier-1" }
+settings.startup["simplified-tier-based-cost-reduction"] = { value = "minor" }
 
 require "test_data/setup"
 require "test_data/recipes"
@@ -19,6 +20,8 @@ local expectations = {}
 expectations["inserter"] = {{ "iron-plate", 4 }, { "copper-plate", 2 }}
 expectations["assembling-machine-1"] = {{ "iron-plate", 22 }, { "copper-plate", 5 }}
 expectations["refined-concrete"] = {{ "stone-brick", 10 }, { "iron-ore", 2 }, {"water", 300}, {"iron-plate", 9}}
+
+expectations["speed-module-3"] = {{"iron-plate", 261}, {"coal", 46}, {"water", 127}, {"copper-plate", 481}, {"crude-oil", 2148}}
 
 if not should_remove_item(find_item('iron-plate'), 0) then
   error("iron-plate should be removed at max-tier 0")
