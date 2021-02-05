@@ -10,3 +10,13 @@ data:extend({
           "tier-8", "tier-9", "tier-10", "tier-11", "tier-12", "tier-13", "tier-14"}
     }
 })
+
+data:extend({
+    {
+        type = "string-setting",
+        name = "simplified-tier-based-cost-reduction",
+        setting_type = "startup",
+        default_value = "moderate",
+        allowed_values = {"none", "minor", "decent", "moderate", "serious", "immense"}
+    }
+})
