@@ -5,6 +5,8 @@ end
 settings = {startup = {}}
 settings.startup["simplified-max-intermediate-tier"] = { value = "tier-1" }
 settings.startup["simplified-tier-based-cost-reduction"] = { value = "none" }
+settings.startup["simplified-tier-based-cost-reduction-for-technology"] = { value = "none" }
+settings.startup["simplified-item-count-crop-strategy"] = { value = "onehalf" }
 
 require "test_data/setup"
 require "test_data/recipes"

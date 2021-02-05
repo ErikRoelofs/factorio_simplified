@@ -30,3 +30,14 @@ data:extend({
         allowed_values = {"none", "minor", "decent", "moderate", "serious", "immense"}
     }
 })
+
+data:extend({
+    {
+        type = "string-setting",
+        name = "simplified-item-count-crop-strategy",
+        setting_type = "startup",
+        default_value = "none",
+        allowed_values = {"none", "onehalf", "onethird", "max4", "max3", "max2", "max1"}
+    }
+})
+

@@ -70,3 +70,8 @@ function get_tier_based_cost_reduction_for_technology()
   end
   return 1
 end
+
+function get_crop_strategy()
+  local value = settings.startup["simplified-item-count-crop-strategy"].value
+  return value
+end

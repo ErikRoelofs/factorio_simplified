@@ -1,9 +1,7 @@
 - add some settings:
   - crop ingredient counts
     - crop out the lowest values?
-  - reduce speed of cost increase over levels
-  - reduce speed of tech cost increase
-  
+
   - remove some pointless barrel fill/flush recipes
   - better handle chemical/refinery recipes that use multiple fluids
   

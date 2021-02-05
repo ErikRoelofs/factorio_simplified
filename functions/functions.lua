@@ -376,8 +376,38 @@ function multiply_ingredient_cost(ingredients, multiplier)
   return multiplied  
 end
 
+function remove_lowest_ingredient(ingredients)
+  if #ingredients == 0 then return {} end
+  
+  local remaining = {}
+  local lowest_value = 66000 -- above the allowed limit
+  local lowest_ingredient = nil
+  for _, i in ipairs(ingredients) do
+    if get_ingredient_amount(i) < lowest_value then
+      if lowest_ingredient then
+        table.insert(remaining, lowest_ingredient)
+      end
+      lowest_value = get_ingredient_amount(i)
+      lowest_ingredient = i
+    else
+      table.insert(remaining, i)
+    end      
+  end
+  return remaining
+end
 
-function crop_ingredients(ingredients)
+function determine_required_ingredient_count(current, strategy)
+  if strategy == "none" then return current end
+  if strategy == "max4" then return math.min(current, 4) end
+  if strategy == "max3" then return math.min(current, 3) end
+  if strategy == "max2" then return math.min(current, 2) end
+  if strategy == "max1" then return math.min(current, 1) end  
+  if strategy == "onehalf" then return math.ceil(current / 2) end
+  if strategy == "onethird" then return math.ceil(current / 3) end  
+  return current
+end
+
+function crop_ingredients(ingredients, strategy)
   -- for now, just crop out multiple fluids
   local highest_fluid_count = 0
   local highest_fluid_name = nil
@@ -405,7 +435,14 @@ function crop_ingredients(ingredients)
       ingredients[k] = update_ingredient_amount(i, 65000)
     end
   end
-    
+  
+  -- finally, eliminate the lowest X ingredients based on strategy
+  local required_count = determine_required_ingredient_count(#ingredients, strategy)
+  
+  while #ingredients > required_count do
+    ingredients = remove_lowest_ingredient(ingredients)
+  end
+  
   return ingredients
 end
 

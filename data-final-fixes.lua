@@ -66,7 +66,7 @@ debug_log("determining new costs for each recipe")
 local known_item_costs = {}
 local new_recipe_costs = {}
 for _, recipe in pairs(data.raw.recipe) do
-  local new_costs = determine_new_recipe_cost(recipe, known_item_costs, max_item_tier, 1, get_tier_based_cost_reduction())
+  local new_costs = determine_new_recipe_cost(recipe, known_item_costs, max_item_tier, get_crop_strategy(), get_tier_based_cost_reduction())
   new_recipe_costs[recipe] = new_costs
 end
 
