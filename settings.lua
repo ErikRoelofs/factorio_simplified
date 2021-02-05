@@ -20,3 +20,13 @@ data:extend({
         allowed_values = {"none", "minor", "decent", "moderate", "serious", "immense"}
     }
 })
+
+data:extend({
+    {
+        type = "string-setting",
+        name = "simplified-tier-based-cost-reduction-for-technology",
+        setting_type = "startup",
+        default_value = "none",
+        allowed_values = {"none", "minor", "decent", "moderate", "serious", "immense"}
+    }
+})

@@ -85,6 +85,30 @@ for recipe_key, recipe in pairs(data.raw["recipe"]) do
   end
 end
 
+debug_log("determine tier of each technology")
+technology_tier = {}
+for _, tech in pairs(data.raw["technology"]) do
+  determine_tech_tier(tech.name, technology_tier)
+end
+
+debug_log("update technology cost")
+for _, tech in pairs(data.raw["technology"]) do
+  local tier = technology_tier[tech.name]
+  local multiplier = get_tier_based_cost_reduction_for_technology() ^ tier
+  if multiplier < 0.001 then
+    multiplier = 0.001
+  end
+  if tech.unit.count then
+    tech.unit.count = math.ceil(tech.unit.count * multiplier)
+  elseif tech.unit.count_formula then    
+    tech.unit.count_formula = "(" .. tech.unit.count_formula .. ")*" .. multiplier
+  else
+      tech.unit.count = math.ceil(tech.unit.count * multiplier)
+  end
+  
+end
+
+
 debug_log("eliminating recipes from technologies")
 -- strip any removed items from technologies
 for _, tech in pairs(data.raw["technology"]) do

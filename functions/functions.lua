@@ -306,6 +306,43 @@ function determine_full_tier(item_name, known_item_tiers, depth)
   return max_tier + 1
 end
 
+function find_tech(tech_name)
+  for _, tech in pairs(data.raw["technology"]) do
+    if tech.name == tech_name then
+      return tech
+    end
+  end  
+  error("Tech not found: " .. tech_name )
+end
+
+function get_tech_prequisites(tech)
+  if not tech.prerequisites then
+    return {}
+  end
+  return tech.prerequisites
+end
+
+function determine_tech_tier(tech_name, known_tech_tiers)
+  -- cache
+  if known_tech_tiers[tech_name] then return known_tech_tiers[tech_name] end
+  
+  local tech = find_tech(tech_name)
+  
+  local prerequisites = get_tech_prequisites(tech)
+    
+  if #prerequisites == 0 then
+    known_tech_tiers[tech_name] = 0
+    return 0
+  end
+  
+  local max_tier = 0
+  for _, prereq in ipairs(prerequisites) do
+    max_tier = math.max(max_tier, determine_tech_tier(prereq, known_tech_tiers))
+  end
+  known_tech_tiers[tech_name] = max_tier + 1
+  return max_tier + 1
+end
+
 -- an item's full tier is equal to the highest tier of its intermediates, + 1 if it itself an intermediate
 function determine_intermediate_tier(item_name, known_item_tiers)
   -- cache

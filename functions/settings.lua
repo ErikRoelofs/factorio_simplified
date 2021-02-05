@@ -49,5 +49,24 @@ function get_tier_based_cost_reduction()
   elseif value == "immense" then
     return 0.5
   end
-  
+  return 1
+end
+
+
+function get_tier_based_cost_reduction_for_technology()
+  local value = settings.startup["simplified-tier-based-cost-reduction-for-technology"].value
+  if value == "none" then
+    return 1
+  elseif value == "minor" then
+    return 0.95
+  elseif value == "decent" then
+    return 0.9
+  elseif value == "moderate" then
+    return 0.85
+  elseif value == "serious" then
+    return 0.8
+  elseif value == "immense" then
+    return 0.75
+  end
+  return 1
 end
