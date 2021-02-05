@@ -1,9 +1,9 @@
 {
   "name": "simplified",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "title": "Factorio Simplified",
   "author": "Erik Roelofs",
   "factorio_version": "1.1",
   "dependencies": ["base >= 1.1"],
-  "description": "Factorio, but a LOT easier. Because my kids want to play but it's too difficult."
+  "description": "Your skills must grow. Factorio Simplified lets you tune down the difficulty of the base game. Designed to let my young kids play. Mod settings allow you to make the game's difficulty grow with your (or your kids') skills."
 }

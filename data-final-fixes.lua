@@ -133,8 +133,15 @@ for _, recipe in pairs(data.raw["recipe"]) do
  
   -- fix the rocket parts. I guess it either doesn't support fluid or more than 3 parts? Whatever, this works.
   if recipe.name == "rocket-part" then
-    table.remove(recipe.ingredients, 4)
-    table.remove(recipe.ingredients, 1)
+    local ingredients = find_ingredients(recipe)
+    for i = #ingredients, 1, -1 do 
+      if is_fluid_ingredient(ingredients[i]) then
+        table.remove(recipe.ingredients, i)
+      end
+    end
+    while #ingredients > 3 do
+      ingredients = remove_lowest_ingredient(ingredients)
+    end
   end
 end
 

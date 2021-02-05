@@ -1,9 +1,5 @@
-- add some settings:
-  - crop ingredient counts
-    - crop out the lowest values?
-
   - remove some pointless barrel fill/flush recipes
   - better handle chemical/refinery recipes that use multiple fluids
   
 - mod compatibility:
-  - some handling of multiple recipes producing the same item
+  - some clever handling of multiple recipes producing the same item
